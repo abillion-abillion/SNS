@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>인스타그램 인사이트 분석 · 핀사이트랩스</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+<style>
+  :root{
+    --brand:#4B30FF; --brand-deep:#3617CD; --brand-soft:#EEEAFF; --brand-soft2:#F6F4FF;
+    --ink:#16161D; --ink-2:#3B3B49; --muted:#6B6B7B; --faint:#9A9AA8;
+    --bg:#F6F7FB; --surface:#FFFFFF; --line:#E9E9F1; --line-2:#F0F0F6;
+    --pos:#0FA968; --neg:#E5484D; --warn:#B26A00;
+    --c1:#4B30FF; --c2:#8B5CF6; --c3:#B79BFF; --c4:#1E1B4B; --c5:#22B8CF; --c6:#F08C00;
+    --r:14px; --shadow:0 1px 2px rgba(20,20,40,.04),0 8px 24px rgba(20,20,60,.06);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:'Pretendard',-apple-system,BlinkMacSystemFont,system-ui,'Segoe UI',Roboto,sans-serif;
+    background:var(--bg); color:var(--ink); -webkit-font-smoothing:antialiased;
+    font-variant-numeric:tabular-nums; line-height:1.5;
+  }
+  .num{font-variant-numeric:tabular-nums}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 20px}
+
+  /* header */
+  .topbar{
+    background:linear-gradient(110deg,var(--brand-deep) 0%,var(--brand) 60%,#6A52FF 100%);
+    color:#fff;padding:22px 0 24px;
+  }
+  .topbar .wrap{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .logo-dot{width:34px;height:34px;border-radius:9px;background:rgba(255,255,255,.16);
+    display:grid;place-items:center;font-weight:800;letter-spacing:-.5px;border:1px solid rgba(255,255,255,.25)}
+  .brand-name{font-weight:700;font-size:14px;letter-spacing:.2px;opacity:.92}
+  .title-h{font-size:21px;font-weight:800;letter-spacing:-.4px;margin:0;line-height:1.25}
+  .title-sub{font-size:13px;opacity:.82;margin-top:2px}
+  .topbar .spacer{flex:1}
+  .pill{font-size:12px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22);
+    padding:6px 11px;border-radius:999px;font-weight:600}
+
+  main{padding:26px 0 70px}
+
+  /* upload */
+  .uploader{background:var(--surface);border-radius:var(--r);box-shadow:var(--shadow);
+    padding:38px 32px;border:1px solid var(--line)}
+  .drop{
+    border:2px dashed #CFCBEB;border-radius:14px;background:var(--brand-soft2);
+    padding:40px 24px;text-align:center;transition:.18s;cursor:pointer;
+  }
+  .drop.over{border-color:var(--brand);background:var(--brand-soft);transform:translateY(-1px)}
+  .drop h2{margin:0 0 6px;font-size:19px;font-weight:800;letter-spacing:-.4px}
+  .drop p{margin:0;color:var(--muted);font-size:14px}
+  .drop .ic{width:48px;height:48px;border-radius:12px;background:var(--brand);margin:0 auto 16px;
+    display:grid;place-items:center}
+  .btn{display:inline-flex;align-items:center;gap:7px;border:none;cursor:pointer;font-family:inherit;
+    font-weight:700;font-size:14px;border-radius:10px;padding:11px 18px;transition:.15s}
+  .btn-primary{background:var(--brand);color:#fff}
+  .btn-primary:hover{background:var(--brand-deep)}
+  .btn-ghost{background:#fff;color:var(--brand);border:1px solid #D8D2F5}
+  .btn-ghost:hover{background:var(--brand-soft2)}
+  .btn-soft{background:var(--brand-soft);color:var(--brand-deep)}
+  .btn-soft:hover{background:#E3DCFF}
+  .row-btns{display:flex;gap:10px;justify-content:center;margin-top:22px;flex-wrap:wrap}
+
+  details.guide{margin-top:24px;border-top:1px solid var(--line);padding-top:18px}
+  details.guide summary{cursor:pointer;font-weight:700;font-size:14px;color:var(--ink-2);list-style:none}
+  details.guide summary::-webkit-details-marker{display:none}
+  details.guide summary::before{content:'▸';color:var(--brand);margin-right:8px;display:inline-block;transition:.15s}
+  details.guide[open] summary::before{transform:rotate(90deg)}
+  .guide ol{margin:14px 0 0;padding-left:20px;color:var(--ink-2);font-size:13.5px;line-height:1.85}
+  .guide ol b{color:var(--ink)}
+  .guide .note{margin-top:12px;font-size:12.5px;color:var(--muted);background:var(--brand-soft2);
+    padding:10px 12px;border-radius:9px;border-left:3px solid var(--brand)}
+
+  /* toolbar after load */
+  .toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--surface);
+    border:1px solid var(--line);border-radius:12px;padding:12px 16px;box-shadow:var(--shadow);margin-bottom:18px}
+  .toolbar .meta{font-size:13px;color:var(--muted)}
+  .toolbar .meta b{color:var(--ink);font-weight:700}
+  .toolbar .spacer{flex:1}
+  .chip{font-size:12px;background:var(--brand-soft);color:var(--brand-deep);font-weight:700;
+    padding:5px 10px;border-radius:7px}
+  .tbtn{font-size:13px;font-weight:700;border:1px solid var(--line);background:#fff;color:var(--ink-2);
+    padding:8px 13px;border-radius:9px;cursor:pointer;font-family:inherit}
+  .tbtn:hover{border-color:var(--brand);color:var(--brand)}
+
+  /* mapping panel */
+  .mapping{background:var(--surface);border:1px solid var(--line);border-radius:12px;
+    padding:16px 18px;margin-bottom:18px;box-shadow:var(--shadow)}
+  .mapping h3{margin:0 0 4px;font-size:14px;font-weight:800}
+  .mapping .hint{font-size:12.5px;color:var(--muted);margin:0 0 14px}
+  .map-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+  .map-cell label{display:block;font-size:12px;font-weight:700;color:var(--ink-2);margin-bottom:5px}
+  .map-cell select{width:100%;font-family:inherit;font-size:13px;padding:8px 9px;border-radius:8px;
+    border:1px solid var(--line);background:#fff;color:var(--ink)}
+  .map-cell.req label::after{content:' *';color:var(--brand)}
+  .map-actions{margin-top:14px;display:flex;gap:10px}
+
+  /* sections */
+  .section{margin:26px 0 0}
+  .section-h{display:flex;align-items:baseline;gap:10px;margin:0 0 14px}
+  .section-h h2{font-size:16px;font-weight:800;letter-spacing:-.3px;margin:0}
+  .section-h .eyebrow{font-size:11px;font-weight:800;color:var(--brand);letter-spacing:1px;text-transform:uppercase}
+  .section-h .desc{font-size:12.5px;color:var(--muted);margin-left:auto}
+
+  /* KPI */
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:12px}
+  .kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 16px 15px;
+    box-shadow:var(--shadow);position:relative;overflow:hidden}
+  .kpi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--brand)}
+  .kpi .k-label{font-size:12px;color:var(--muted);font-weight:600;margin-bottom:7px}
+  .kpi .k-val{font-size:25px;font-weight:800;letter-spacing:-1px;line-height:1}
+  .kpi .k-val .unit{font-size:14px;font-weight:700;color:var(--faint);margin-left:2px}
+  .kpi .k-sub{font-size:11.5px;color:var(--faint);margin-top:6px}
+
+  /* insight callouts */
+  .insights{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;margin-top:14px}
+  .insight{background:linear-gradient(180deg,#fff,var(--brand-soft2));border:1px solid #E5E0FB;
+    border-radius:12px;padding:14px 15px}
+  .insight .tag{font-size:10.5px;font-weight:800;color:var(--brand);letter-spacing:.5px;text-transform:uppercase}
+  .insight p{margin:6px 0 0;font-size:13.5px;color:var(--ink-2);line-height:1.55}
+  .insight p b{color:var(--brand-deep);font-weight:800}
+
+  /* card / chart */
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+    padding:16px 18px 18px;box-shadow:var(--shadow)}
+  .card h4{margin:0 0 2px;font-size:14px;font-weight:800}
+  .card .cap{font-size:12px;color:var(--muted);margin:0 0 12px}
+  svg.chart{display:block;width:100%;height:auto;overflow:visible}
+  .bar-rect{transition:.15s}
+  .axis-l{fill:var(--faint);font-size:10px}
+  .val-l{fill:var(--ink-2);font-size:10.5px;font-weight:700}
+  .grid-line{stroke:var(--line-2);stroke-width:1}
+
+  /* table */
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:right;padding:9px 10px;border-bottom:1px solid var(--line-2)}
+  th:first-child,td:first-child{text-align:left}
+  thead th{font-size:11.5px;color:var(--muted);font-weight:700;border-bottom:1px solid var(--line)}
+  tbody tr:hover{background:var(--brand-soft2)}
+  td.t-type{font-weight:700}
+  .badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;
+    background:var(--brand-soft);color:var(--brand-deep)}
+  .desc-cell{max-width:340px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink-2)}
+  .desc-cell a{color:var(--ink-2);text-decoration:none}
+  .desc-cell a:hover{color:var(--brand);text-decoration:underline}
+
+  /* tabs */
+  .tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+  .tab{font-size:12.5px;font-weight:700;padding:7px 13px;border-radius:8px;cursor:pointer;
+    border:1px solid var(--line);background:#fff;color:var(--muted)}
+  .tab.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+
+  /* funnel */
+  .funnel{display:flex;flex-direction:column;gap:8px}
+  .funnel-row{display:flex;align-items:center;gap:12px}
+  .funnel-bar{height:38px;border-radius:8px;background:linear-gradient(90deg,var(--brand),#6A52FF);
+    display:flex;align-items:center;padding:0 12px;color:#fff;font-weight:800;font-size:14px;min-width:60px}
+  .funnel-label{width:96px;font-size:12.5px;color:var(--muted);font-weight:700;text-align:right;flex-shrink:0}
+  .funnel-rate{font-size:12px;color:var(--brand-deep);font-weight:700}
+
+  .hidden{display:none!important}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:12px;color:var(--ink-2)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .legend i{width:11px;height:11px;border-radius:3px;display:inline-block}
+  footer{color:var(--faint);font-size:12px;text-align:center;margin-top:40px}
+  .err{background:#FFF0F0;border:1px solid #F4C7C7;color:#9B2C2C;padding:12px 14px;border-radius:10px;
+    font-size:13px;margin-bottom:16px}
+
+  @media (max-width:760px){
+    .grid-2{grid-template-columns:1fr}
+    .title-h{font-size:18px}
+    .desc-cell{max-width:160px}
+    .section-h .desc{display:none}
+  }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="wrap">
+      <div class="logo-dot">JW</div>
+      <div>
+        <div class="brand-name">핀사이트랩스 · JW Financial</div>
+        <h1 class="title-h">인스타그램 인사이트 분석기</h1>
+        <div class="title-sub">CSV만 올리면 참여율·저장률·포맷효율·발행타이밍이 한 번에</div>
+      </div>
+      <div class="spacer"></div>
+      <div class="pill" id="statusPill">데이터 대기 중</div>
+    </div>
+  </div>
+
+  <main class="wrap">
+    <div id="errBox"></div>
+
+    <!-- UPLOAD STATE -->
+    <section id="uploadState" class="uploader">
+      <div class="drop" id="drop">
+        <div class="ic">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </div>
+        <h2>인사이트 CSV를 여기에 끌어다 놓으세요</h2>
+        <p>또는 클릭해서 파일 선택 · .csv 권장 (.xlsx도 지원)</p>
+        <input type="file" id="fileInput" accept=".csv,.xlsx,.xls" class="hidden" />
+      </div>
+      <div class="row-btns">
+        <button class="btn btn-primary" id="pickBtn">파일 선택</button>
+        <button class="btn btn-ghost" id="sampleBtn">샘플 데이터로 미리보기</button>
+      </div>
+
+      <details class="guide">
+        <summary>Meta Business Suite에서 CSV 내보내는 방법</summary>
+        <ol>
+          <li><b>business.facebook.com</b> 접속 → 왼쪽 메뉴 <b>인사이트(Insights)</b></li>
+          <li><b>콘텐츠(Content)</b> 탭 선택 → 우측 상단 <b>기간</b> 설정(최대 2년)</li>
+          <li>우측 상단 <b>내보내기(Export)</b> → <b>CSV로 내보내기</b> 선택 후 다운로드</li>
+          <li>받은 파일을 위 영역에 올리면 끝 — 컬럼은 자동 인식됩니다</li>
+        </ol>
+        <div class="note">한글/영문 헤더 모두 자동 인식하며, 인식이 어긋나면 상단 <b>컬럼 매핑</b>에서 직접 지정할 수 있습니다. 데이터는 브라우저 안에서만 처리되어 외부로 전송되지 않습니다.</div>
+      </details>
+    </section>
+
+    <!-- RESULT STATE -->
+    <div id="resultState" class="hidden">
+      <div class="toolbar">
+        <span class="chip" id="fileChip">파일</span>
+        <span class="meta">게시물 <b id="mPosts">0</b>개</span>
+        <span class="meta">·&nbsp; 기간 <b id="mRange">—</b></span>
+        <span class="spacer"></span>
+        <button class="tbtn" id="toggleMap">컬럼 매핑</button>
+        <button class="tbtn" id="resetBtn">다시 올리기</button>
+      </div>
+
+      <div class="mapping hidden" id="mapPanel">
+        <h3>컬럼 매핑</h3>
+        <p class="hint">자동 인식 결과입니다. 잘못 잡혔으면 바꾼 뒤 <b>다시 계산</b>을 누르세요. (* 핵심 지표 항목)</p>
+        <div class="map-grid" id="mapGrid"></div>
+        <div class="map-actions">
+          <button class="btn btn-primary" id="recalcBtn">다시 계산</button>
+        </div>
+      </div>
+
+      <!-- KPIs -->
+      <section class="section">
+        <div class="kpis" id="kpis"></div>
+      </section>
+
+      <!-- INSIGHTS -->
+      <section class="section">
+        <div class="section-h"><span class="eyebrow">읽어주는 핵심</span><h2>데이터가 말하는 것</h2></div>
+        <div class="insights" id="insights"></div>
+      </section>
+
+      <!-- CHARTS row 1 -->
+      <section class="section">
+        <div class="section-h"><span class="eyebrow">추이 · 구성</span><h2>도달 추이 & 참여 구성</h2></div>
+        <div class="grid-2">
+          <div class="card">
+            <h4>게시물별 도달 추이</h4>
+            <p class="cap">시간 순으로 본 게시물별 도달 수</p>
+            <div id="trendChart"></div>
+          </div>
+          <div class="card">
+            <h4>참여 구성</h4>
+            <p class="cap">좋아요·댓글·공유·저장 비중</p>
+            <div id="compChart"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- FORMAT -->
+      <section class="section">
+        <div class="section-h"><span class="eyebrow">무엇을 만들까</span><h2>포맷별 효율</h2><span class="desc">릴스 vs 캐러셀 vs 이미지</span></div>
+        <div class="grid-2">
+          <div class="card">
+            <h4>포맷별 평균 참여율</h4>
+            <p class="cap">(좋아요+댓글+공유+저장) ÷ 도달</p>
+            <div id="fmtErChart"></div>
+          </div>
+          <div class="card">
+            <h4>포맷별 평균 도달</h4>
+            <p class="cap">게시물당 평균 도달 계정 수</p>
+            <div id="fmtReachChart"></div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:14px">
+          <h4>포맷 상세</h4>
+          <p class="cap">저장률은 금융 콘텐츠에서 '나중에 다시 볼 가치'의 신호입니다</p>
+          <div style="overflow-x:auto"><table id="fmtTable"></table></div>
+        </div>
+      </section>
+
+      <!-- TIMING -->
+      <section class="section">
+        <div class="section-h"><span class="eyebrow">언제 올릴까</span><h2>발행 타이밍</h2></div>
+        <div class="grid-2">
+          <div class="card">
+            <h4>요일별 평균 도달</h4>
+            <p class="cap" id="dowCap">요일별 게시물 평균 도달</p>
+            <div id="dowChart"></div>
+          </div>
+          <div class="card" id="hourCard">
+            <h4>시간대별 평균 도달</h4>
+            <p class="cap" id="hourCap">시간 정보가 있는 게시물 기준</p>
+            <div id="hourChart"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- FUNNEL (conditional) -->
+      <section class="section hidden" id="funnelSection">
+        <div class="section-h"><span class="eyebrow">상담으로 가는 길</span><h2>전환 퍼널</h2></div>
+        <div class="card">
+          <h4>도달 → 프로필 방문 → 링크 클릭</h4>
+          <p class="cap">콘텐츠가 실제 상담 유입으로 이어지는지 보여주는 핵심 지표</p>
+          <div class="funnel" id="funnel"></div>
+        </div>
+      </section>
+
+      <!-- TOP POSTS -->
+      <section class="section">
+        <div class="section-h"><span class="eyebrow">이긴 콘텐츠</span><h2>TOP 게시물</h2></div>
+        <div class="card">
+          <div class="tabs" id="topTabs">
+            <div class="tab active" data-k="reach">도달순</div>
+            <div class="tab" data-k="er">참여율순</div>
+            <div class="tab" data-k="saves">저장순</div>
+          </div>
+          <div style="overflow-x:auto"><table id="topTable"></table></div>
+        </div>
+      </section>
+
+      <footer>핀사이트랩스 인스타그램 인사이트 분석기 · 모든 계산은 이 브라우저 안에서만 수행됩니다</footer>
+    </div>
+  </main>
+
+<script>
+/* ============ 검증된 분석 로직 (Node 테스트 완료) ============ */
+function parseCSV(text){const rows=[];let row=[];let field='';let i=0;let inQuotes=false;if(text.charCodeAt(0)===0xFEFF)text=text.slice(1);while(i<text.length){const c=text[i];if(inQuotes){if(c==='"'){if(text[i+1]==='"'){field+='"';i+=2;continue;}inQuotes=false;i++;continue;}field+=c;i++;continue;}if(c==='"'){inQuotes=true;i++;continue;}if(c===','){row.push(field);field='';i++;continue;}if(c==='\r'){i++;continue;}if(c==='\n'){row.push(field);rows.push(row);row=[];field='';i++;continue;}field+=c;i++;}if(field.length>0||row.length>0){row.push(field);rows.push(row);}return rows;}
+function rowsToObjects(rows){if(!rows.length)return{headers:[],data:[]};const headers=rows[0].map(h=>(h||'').trim());const data=[];for(let r=1;r<rows.length;r++){const rr=rows[r];if(rr.length===1&&(rr[0]||'').trim()==='')continue;const obj={};for(let c=0;c<headers.length;c++)obj[headers[c]]=rr[c]!==undefined?rr[c]:'';data.push(obj);}return{headers,data};}
+function parseNum(v){if(v===null||v===undefined)return null;let s=String(v).trim();if(s===''||s==='-'||s==='—'||/^n\/?a$/i.test(s))return null;s=s.replace(/,/g,'').replace(/%/g,'').replace(/\s/g,'');const m=s.match(/^(-?\d*\.?\d+)([KkMm만천]?)$/);if(m){let n=parseFloat(m[1]);const suf=m[2];if(suf==='K'||suf==='k'||suf==='천')n*=1000;else if(suf==='M'||suf==='m')n*=1000000;else if(suf==='만')n*=10000;return n;}const n=parseFloat(s);return isNaN(n)?null:n;}
+function parseDateInfo(v){if(v==null)return{date:null,hasTime:false};const s=String(v).trim();if(!s)return{date:null,hasTime:false};let m=s.match(/(\d{4})[-/.\s]+(\d{1,2})[-/.\s]+(\d{1,2})(?:[ T,]+(\d{1,2}):(\d{2}))?/);if(m){const y=+m[1],mo=+m[2]-1,da=+m[3];const hasTime=m[4]!==undefined;let h=m[4]?+m[4]:0;const mi=m[5]?+m[5]:0;if(/오후|PM|pm/.test(s)&&h<12)h+=12;if(/오전|AM|am/.test(s)&&h===12)h=0;const d=new Date(y,mo,da,h,mi);if(!isNaN(d.getTime()))return{date:d,hasTime};}m=s.match(/(\d{1,2})[/](\d{1,2})[/](\d{4})(?:[ ,]+(\d{1,2}):(\d{2}))?/);if(m){const mo=+m[1]-1,da=+m[2],y=+m[3];const hasTime=m[4]!==undefined;let h=m[4]?+m[4]:0;const mi=m[5]?+m[5]:0;if(/오후|PM|pm/.test(s)&&h<12)h+=12;const d=new Date(y,mo,da,h,mi);if(!isNaN(d.getTime()))return{date:d,hasTime};}const d=new Date(s);return isNaN(d.getTime())?{date:null,hasTime:false}:{date:d,hasTime:/\d:\d/.test(s)};}
+const FIELD_SYNONYMS={publishTime:['publish time','post date','date','time','게시 시간','게시시간','게시일','날짜','시간','게시 날짜','created time','created'],postType:['post type','media type','media product type','type','게시물 유형','유형','형식','포맷','format'],description:['description','post text','caption','title','설명','캡션','제목','내용','본문','텍스트'],reach:['reach','accounts reached','도달','도달한 계정','도달수','도달 계정 수'],impressions:['impressions','impression','노출','노출수'],likes:['likes and reactions','reactions','likes','like','좋아요 및 반응','좋아요','반응'],comments:['comments','comment','댓글','댓글수'],shares:['shares','share','공유','공유수'],saves:['saves','saved','save','bookmarks','저장','저장됨','저장수','북마크'],videoViews:['video views','reel plays','plays','views','동영상 조회','재생','재생수','조회','조회수'],linkClicks:['link clicks','website clicks','clicks','링크 클릭','웹사이트 클릭','클릭'],profileVisits:['profile visits','profile activity','프로필 방문','프로필 방문수'],follows:['net follows','new follows','follows','팔로우','팔로워 증가','신규 팔로우'],permalink:['permalink','url','link','퍼머링크','링크','주소']};
+function norm(s){return String(s||'').toLowerCase().replace(/\s+/g,' ').trim();}
+function detectFields(headers){const map={};const used=new Set();const nheaders=headers.map(h=>({raw:h,n:norm(h)}));for(const field of Object.keys(FIELD_SYNONYMS)){for(const syn of FIELD_SYNONYMS[field]){const hit=nheaders.find(h=>!used.has(h.raw)&&h.n===norm(syn));if(hit){map[field]=hit.raw;used.add(hit.raw);break;}}}for(const field of Object.keys(FIELD_SYNONYMS)){if(map[field])continue;for(const syn of FIELD_SYNONYMS[field]){const sn=norm(syn);const hit=nheaders.find(h=>!used.has(h.raw)&&(h.n.includes(sn)||sn.includes(h.n)));if(hit){map[field]=hit.raw;used.add(hit.raw);break;}}}return map;}
+function normType(s){if(!s)return'기타';const t=String(s).toLowerCase();if(/reel|릴스|릴/.test(t))return'릴스';if(/carousel|album|캐러셀|슬라이드|앨범|여러/.test(t))return'캐러셀';if(/video|동영상|영상/.test(t))return'동영상';if(/image|photo|사진|이미지|단일/.test(t))return'이미지';if(/story|스토리/.test(t))return'스토리';return String(s).trim()||'기타';}
+function median(arr){const a=arr.filter(x=>x!=null&&!isNaN(x)).sort((x,y)=>x-y);if(!a.length)return 0;const m=Math.floor(a.length/2);return a.length%2?a[m]:(a[m-1]+a[m])/2;}
+function mean(arr){const a=arr.filter(x=>x!=null&&!isNaN(x));return a.length?a.reduce((s,x)=>s+x,0)/a.length:0;}
+function sum(arr){return arr.reduce((s,x)=>s+(x||0),0);}
+function buildRecords(data,map){return data.map(row=>{const g=f=>map[f]?row[map[f]]:undefined;const di=parseDateInfo(g('publishTime'));const reach=parseNum(g('reach'))||0;const likes=parseNum(g('likes'))||0;const comments=parseNum(g('comments'))||0;const shares=parseNum(g('shares'))||0;const saves=parseNum(g('saves'))||0;const engagement=likes+comments+shares+saves;return{date:di.date,hasTime:di.hasTime,type:normType(g('postType')),rawType:g('postType')||'',reach,impressions:parseNum(g('impressions')),likes,comments,shares,saves,engagement,videoViews:parseNum(g('videoViews')),linkClicks:parseNum(g('linkClicks')),profileVisits:parseNum(g('profileVisits')),desc:(g('description')||'').toString().slice(0,120),permalink:g('permalink')||'',er:reach>0?engagement/reach:null,saveRate:reach>0?saves/reach:null,shareRate:reach>0?shares/reach:null};});}
+function computeMetrics(recs,map){const n=recs.length;const withReach=recs.filter(r=>r.reach>0);const erVals=recs.map(r=>r.er).filter(x=>x!=null);const summary={posts:n,totalReach:sum(recs.map(r=>r.reach)),totalEngagement:sum(recs.map(r=>r.engagement)),avgReach:mean(recs.map(r=>r.reach)),medianReach:median(recs.map(r=>r.reach)),avgER:mean(erVals),medianER:median(erVals),avgSaveRate:mean(recs.map(r=>r.saveRate).filter(x=>x!=null)),totalLikes:sum(recs.map(r=>r.likes)),totalComments:sum(recs.map(r=>r.comments)),totalShares:sum(recs.map(r=>r.shares)),totalSaves:sum(recs.map(r=>r.saves)),hasReach:withReach.length>0};const fmtGroups={};for(const r of recs)(fmtGroups[r.type]=fmtGroups[r.type]||[]).push(r);const byFormat=Object.keys(fmtGroups).map(k=>{const g=fmtGroups[k];return{type:k,count:g.length,avgReach:mean(g.map(r=>r.reach)),avgER:mean(g.map(r=>r.er).filter(x=>x!=null)),avgSaveRate:mean(g.map(r=>r.saveRate).filter(x=>x!=null)),avgSaves:mean(g.map(r=>r.saves)),avgEngagement:mean(g.map(r=>r.engagement))};}).sort((a,b)=>b.count-a.count);const dowLabels=['월','화','수','목','금','토','일'];const dowB=Array.from({length:7},()=>[]);for(const r of recs){if(!r.date)continue;dowB[(r.date.getDay()+6)%7].push(r);}const byDOW=dowLabels.map((lab,i)=>({label:lab,count:dowB[i].length,avgReach:mean(dowB[i].map(r=>r.reach)),avgER:mean(dowB[i].map(r=>r.er).filter(x=>x!=null))}));const hourB=Array.from({length:24},()=>[]);let timedCount=0;for(const r of recs){if(!r.date||!r.hasTime)continue;timedCount++;hourB[r.date.getHours()].push(r);}const byHour=hourB.map((b,h)=>({hour:h,count:b.length,avgReach:mean(b.map(r=>r.reach)),avgER:mean(b.map(r=>r.er).filter(x=>x!=null))}));const timeline=recs.filter(r=>r.date).sort((a,b)=>a.date-b.date).map(r=>({t:r.date.getTime(),reach:r.reach,er:r.er,desc:r.desc,type:r.type}));const dates=recs.filter(r=>r.date).map(r=>r.date);const dateRange=dates.length?{min:new Date(Math.min(...dates)),max:new Date(Math.max(...dates))}:null;const topByReach=[...recs].sort((a,b)=>b.reach-a.reach).slice(0,10);const topByER=recs.filter(r=>r.er!=null).sort((a,b)=>b.er-a.er).slice(0,10);const topBySaves=[...recs].sort((a,b)=>b.saves-a.saves).slice(0,10);const composition={likes:summary.totalLikes,comments:summary.totalComments,shares:summary.totalShares,saves:summary.totalSaves};const hasFunnel=!!(map.profileVisits||map.linkClicks);const funnel=hasFunnel?{reach:summary.totalReach,profileVisits:map.profileVisits?sum(recs.map(r=>r.profileVisits||0)):null,linkClicks:map.linkClicks?sum(recs.map(r=>r.linkClicks||0)):null}:null;return{summary,byFormat,byDOW,byHour,timeline,dateRange,topByReach,topByER,topBySaves,composition,funnel,timedCount,n};}
+
+/* ============ 포맷/렌더 유틸 ============ */
+const PAL=['#4B30FF','#8B5CF6','#B79BFF','#1E1B4B','#22B8CF','#F08C00'];
+const fmtInt=n=>Math.round(n||0).toLocaleString('ko-KR');
+const fmtPct=(n,d=2)=>((n||0)*100).toFixed(d)+'%';
+const fmtDate=d=>d?`${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`:'—';
+const esc=s=>String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function barChart(el,items,opts){
+  opts=opts||{};const fmt=opts.fmt||fmtInt;const color=opts.color||'#4B30FF';
+  const W=opts.w||520,rowH=34,padL=opts.padL||58,padR=70,top=8;
+  const H=top+items.length*rowH+6;
+  const max=Math.max(1,...items.map(d=>d.value||0));
+  let bars='';
+  items.forEach((d,i)=>{
+    const y=top+i*rowH;const bw=Math.max(2,(d.value/max)*(W-padL-padR));
+    const c=Array.isArray(color)?color[i%color.length]:color;
+    bars+=`<rect class="bar-rect" x="${padL}" y="${y+6}" width="${bw}" height="${rowH-14}" rx="5" fill="${c}"><title>${esc(d.label)}: ${fmt(d.value)}</title></rect>`;
+    bars+=`<text class="axis-l" x="${padL-8}" y="${y+rowH/2+1}" text-anchor="end" dominant-baseline="middle">${esc(d.label)}</text>`;
+    bars+=`<text class="val-l" x="${padL+bw+8}" y="${y+rowH/2+1}" dominant-baseline="middle">${fmt(d.value)}</text>`;
+    if(opts.sub&&d.sub!=null)bars+=`<text class="axis-l" x="${W-4}" y="${y+rowH/2+1}" text-anchor="end" dominant-baseline="middle">${opts.subfmt?opts.subfmt(d.sub):d.sub}</text>`;
+  });
+  el.innerHTML=`<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${bars}</svg>`;
+}
+
+function lineChart(el,pts){
+  if(!pts.length){el.innerHTML='<p class="cap">날짜 정보가 없어 추이를 그릴 수 없습니다.</p>';return;}
+  const W=520,H=210,padL=46,padR=14,padT=12,padB=26;
+  const xs=pts.map(p=>p.t);const minX=Math.min(...xs),maxX=Math.max(...xs);
+  const maxY=Math.max(1,...pts.map(p=>p.reach));
+  const X=t=>maxX===minX?padL:(padL+(t-minX)/(maxX-minX)*(W-padL-padR));
+  const Y=v=>H-padB-(v/maxY)*(H-padT-padB);
+  let grid='',ticks='';
+  for(let i=0;i<=4;i++){const v=maxY*i/4;const y=Y(v);grid+=`<line class="grid-line" x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}"/>`;ticks+=`<text class="axis-l" x="${padL-7}" y="${y+3}" text-anchor="end">${fmtInt(v)}</text>`;}
+  let path='';pts.forEach((p,i)=>{path+=(i?'L':'M')+X(p.t).toFixed(1)+' '+Y(p.reach).toFixed(1)+' ';});
+  let area=`M${X(pts[0].t).toFixed(1)} ${(H-padB)} `+pts.map(p=>'L'+X(p.t).toFixed(1)+' '+Y(p.reach).toFixed(1)).join(' ')+` L${X(pts[pts.length-1].t).toFixed(1)} ${(H-padB)} Z`;
+  let dots='';pts.forEach(p=>{dots+=`<circle cx="${X(p.t).toFixed(1)}" cy="${Y(p.reach).toFixed(1)}" r="3" fill="#4B30FF"><title>${fmtDate(new Date(p.t))} · ${esc(p.type)}\n도달 ${fmtInt(p.reach)} · 참여율 ${p.er!=null?fmtPct(p.er):'—'}\n${esc(p.desc)}</title></circle>`;});
+  const d0=fmtDate(new Date(minX)),d1=fmtDate(new Date(maxX));
+  el.innerHTML=`<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
+    ${grid}${ticks}
+    <path d="${area}" fill="rgba(75,48,255,.09)"/>
+    <path d="${path}" fill="none" stroke="#4B30FF" stroke-width="2.2" stroke-linejoin="round"/>
+    ${dots}
+    <text class="axis-l" x="${padL}" y="${H-6}">${d0}</text>
+    <text class="axis-l" x="${W-padR}" y="${H-6}" text-anchor="end">${d1}</text>
+  </svg>`;
+}
+
+function donut(el,parts){
+  const labels=[['좋아요','likes'],['댓글','comments'],['공유','shares'],['저장','saves']];
+  const total=labels.reduce((s,[,k])=>s+(parts[k]||0),0);
+  const W=520,cx=130,cy=110,r=78,rin=46;
+  if(total<=0){el.innerHTML='<p class="cap">참여 데이터가 없습니다.</p>';return;}
+  let ang=-Math.PI/2;let arcs='';
+  labels.forEach(([lab,k],i)=>{
+    const val=parts[k]||0;const frac=val/total;const a2=ang+frac*Math.PI*2;
+    const x1=cx+r*Math.cos(ang),y1=cy+r*Math.sin(ang),x2=cx+r*Math.cos(a2),y2=cy+r*Math.sin(a2);
+    const xi1=cx+rin*Math.cos(a2),yi1=cy+rin*Math.sin(a2),xi2=cx+rin*Math.cos(ang),yi2=cy+rin*Math.sin(ang);
+    const large=frac>0.5?1:0;
+    arcs+=`<path d="M${x1.toFixed(1)} ${y1.toFixed(1)} A${r} ${r} 0 ${large} 1 ${x2.toFixed(1)} ${y2.toFixed(1)} L${xi1.toFixed(1)} ${yi1.toFixed(1)} A${rin} ${rin} 0 ${large} 0 ${xi2.toFixed(1)} ${yi2.toFixed(1)} Z" fill="${PAL[i]}"><title>${lab}: ${fmtInt(val)} (${(frac*100).toFixed(1)}%)</title></path>`;
+    ang=a2;
+  });
+  let leg='';labels.forEach(([lab,k],i)=>{const val=parts[k]||0;leg+=`<span><i style="background:${PAL[i]}"></i>${lab} <b style="margin-left:3px">${(val/total*100).toFixed(1)}%</b></span>`;});
+  el.innerHTML=`<svg class="chart" viewBox="0 0 ${W} 220" preserveAspectRatio="xMidYMid meet">${arcs}
+    <text x="${cx}" y="${cy-4}" text-anchor="middle" style="font-size:12px;fill:var(--muted)">총 참여</text>
+    <text x="${cx}" y="${cy+16}" text-anchor="middle" style="font-size:17px;font-weight:800;fill:var(--ink)">${fmtInt(total)}</text>
+    </svg><div class="legend">${leg}</div>`;
+}
+
+/* ============ 인사이트 생성 ============ */
+function genInsights(m){
+  const out=[];const s=m.summary;
+  out.push({tag:'전체 참여율',html:`이 기간 평균 참여율은 <b>${fmtPct(s.avgER)}</b>, 중앙값 <b>${fmtPct(s.medianER)}</b>입니다. 평균이 중앙값보다 ${s.avgER>s.medianER?'높으면 소수 히트작이 평균을 끌어올린 것':'낮으면 상위권이 얇은 것'}입니다.`});
+  const fmts=m.byFormat.filter(f=>f.count>0);
+  if(fmts.length>=2){
+    const byReach=[...fmts].sort((a,b)=>b.avgReach-a.avgReach);
+    const hi=byReach[0],lo=byReach[byReach.length-1];
+    if(lo.avgReach>0){const x=(hi.avgReach/lo.avgReach);out.push({tag:'포맷 효율',html:`도달 기준 <b>${hi.type}</b>가 <b>${lo.type}</b> 대비 평균 <b>${x.toFixed(1)}배</b>. 제작 리소스를 ${hi.type} 쪽에 더 배분할 근거입니다.`});}
+    const bySave=[...fmts].sort((a,b)=>b.avgSaveRate-a.avgSaveRate)[0];
+    out.push({tag:'저장률 1위',html:`저장률이 가장 높은 포맷은 <b>${bySave.type}</b> (<b>${fmtPct(bySave.avgSaveRate)}</b>). 저장은 '다시 볼 가치'라 상담 전환의 선행 신호로 봐도 좋습니다.`});
+  }
+  const dows=m.byDOW.filter(d=>d.count>0);
+  if(dows.length>=2){const best=[...dows].sort((a,b)=>b.avgReach-a.avgReach)[0];out.push({tag:'요일',html:`평균 도달이 가장 높은 요일은 <b>${best.label}요일</b> (평균 ${fmtInt(best.avgReach)}). 다만 표본 ${best.count}건이라 더 쌓이면 신뢰도가 올라갑니다.`});}
+  if(m.timedCount>=4){const hs=m.byHour.filter(h=>h.count>0).sort((a,b)=>b.avgReach-a.avgReach);if(hs[0])out.push({tag:'시간대',html:`도달이 가장 좋았던 시간대는 <b>${hs[0].hour}시대</b> (평균 ${fmtInt(hs[0].avgReach)}, ${hs[0].count}건).`});}
+  if(m.funnel&&m.funnel.profileVisits!=null&&m.funnel.reach>0){const cvr=m.funnel.profileVisits/m.funnel.reach;out.push({tag:'전환',html:`도달 대비 프로필 방문 전환은 <b>${fmtPct(cvr)}</b>. 콘텐츠가 '보고 끝'이 아니라 계정 탐색으로 이어지는 비율입니다.`});}
+  return out;
+}
+
+/* ============ 렌더 ============ */
+let STATE={headers:[],map:{},records:[],metrics:null,fileName:''};
+const $=id=>document.getElementById(id);
+
+function render(){
+  const m=STATE.metrics;const s=m.summary;
+  $('uploadState').classList.add('hidden');
+  $('resultState').classList.remove('hidden');
+  $('statusPill').textContent=`${s.posts}개 게시물 분석 완료`;
+  $('fileChip').textContent=STATE.fileName||'데이터';
+  $('mPosts').textContent=fmtInt(s.posts);
+  $('mRange').textContent=m.dateRange?`${fmtDate(m.dateRange.min)} – ${fmtDate(m.dateRange.max)}`:'날짜 없음';
+
+  // KPI
+  const kpis=[
+    {l:'게시물 수',v:fmtInt(s.posts),u:'개'},
+    {l:'평균 도달',v:fmtInt(s.avgReach),sub:`중앙값 ${fmtInt(s.medianReach)}`},
+    {l:'평균 참여율',v:fmtPct(s.avgER),sub:`중앙값 ${fmtPct(s.medianER)}`},
+    {l:'평균 저장률',v:fmtPct(s.avgSaveRate),sub:'저장 ÷ 도달'},
+    {l:'총 참여',v:fmtInt(s.totalEngagement),sub:'좋아요+댓글+공유+저장'},
+    {l:'총 저장',v:fmtInt(s.totalSaves),sub:`총 좋아요 ${fmtInt(s.totalLikes)}`},
+  ];
+  $('kpis').innerHTML=kpis.map(k=>`<div class="kpi"><div class="k-label">${k.l}</div><div class="k-val">${k.v}${k.u?`<span class="unit">${k.u}</span>`:''}</div>${k.sub?`<div class="k-sub">${k.sub}</div>`:''}</div>`).join('');
+
+  // insights
+  $('insights').innerHTML=genInsights(m).map(i=>`<div class="insight"><div class="tag">${i.tag}</div><p>${i.html}</p></div>`).join('');
+
+  // trend + comp
+  lineChart($('trendChart'),m.timeline);
+  donut($('compChart'),m.composition);
+
+  // format charts
+  const fmts=m.byFormat.filter(f=>f.count>0);
+  barChart($('fmtErChart'),fmts.map(f=>({label:`${f.type} (${f.count})`,value:f.avgER})),{fmt:v=>fmtPct(v),color:PAL});
+  barChart($('fmtReachChart'),fmts.map(f=>({label:`${f.type} (${f.count})`,value:f.avgReach})),{fmt:fmtInt,color:PAL});
+
+  // format table
+  $('fmtTable').innerHTML=`<thead><tr><th>포맷</th><th>게시물</th><th>평균 도달</th><th>평균 참여율</th><th>평균 저장률</th><th>평균 저장수</th></tr></thead><tbody>`+
+    fmts.map(f=>`<tr><td class="t-type"><span class="badge">${esc(f.type)}</span></td><td>${fmtInt(f.count)}</td><td>${fmtInt(f.avgReach)}</td><td>${fmtPct(f.avgER)}</td><td>${fmtPct(f.avgSaveRate)}</td><td>${fmtInt(f.avgSaves)}</td></tr>`).join('')+`</tbody>`;
+
+  // timing
+  const dows=m.byDOW;
+  barChart($('dowChart'),dows.map(d=>({label:`${d.label} (${d.count})`,value:d.avgReach})),{fmt:fmtInt,color:'#4B30FF'});
+  if(m.timedCount>0){
+    $('hourCard').classList.remove('hidden');
+    const hrs=m.byHour.filter(h=>h.count>0);
+    barChart($('hourChart'),hrs.map(h=>({label:`${h.hour}시 (${h.count})`,value:h.avgReach})),{fmt:fmtInt,color:'#8B5CF6'});
+    $('hourCap').textContent=`시간 정보가 있는 게시물 ${m.timedCount}개 기준`;
+  }else{
+    $('hourCard').classList.add('hidden');
+  }
+
+  // funnel
+  if(m.funnel){
+    $('funnelSection').classList.remove('hidden');
+    const f=m.funnel;const steps=[['도달',f.reach]];
+    if(f.profileVisits!=null)steps.push(['프로필 방문',f.profileVisits]);
+    if(f.linkClicks!=null)steps.push(['링크 클릭',f.linkClicks]);
+    const base=steps[0][1]||1;
+    $('funnel').innerHTML=steps.map((st,i)=>{
+      const w=Math.max(8,(st[1]/base)*100);const rate=i===0?'100%':fmtPct(st[1]/base,1);
+      const prevRate=i>0?` · 직전 대비 ${fmtPct(st[1]/(steps[i-1][1]||1),1)}`:'';
+      return `<div class="funnel-row"><div class="funnel-label">${st[0]}</div><div class="funnel-bar" style="width:${w}%">${fmtInt(st[1])}</div><div class="funnel-rate">${rate}${prevRate}</div></div>`;
+    }).join('');
+  }else{$('funnelSection').classList.add('hidden');}
+
+  renderTop('reach');
+}
+
+function renderTop(kind){
+  const m=STATE.metrics;
+  const arr=kind==='reach'?m.topByReach:kind==='er'?m.topByER:m.topBySaves;
+  document.querySelectorAll('#topTabs .tab').forEach(t=>t.classList.toggle('active',t.dataset.k===kind));
+  const head=`<thead><tr><th>#</th><th>게시물</th><th>포맷</th><th>도달</th><th>참여율</th><th>저장</th></tr></thead>`;
+  const body=arr.map((r,i)=>{
+    const d=r.permalink?`<a href="${esc(r.permalink)}" target="_blank" rel="noopener">${esc(r.desc)||'(설명 없음)'}</a>`:esc(r.desc)||'(설명 없음)';
+    return `<tr><td>${i+1}</td><td class="desc-cell">${d}</td><td><span class="badge">${esc(r.type)}</span></td><td>${fmtInt(r.reach)}</td><td>${r.er!=null?fmtPct(r.er):'—'}</td><td>${fmtInt(r.saves)}</td></tr>`;
+  }).join('');
+  $('topTable').innerHTML=head+`<tbody>${body}</tbody>`;
+}
+
+function renderMapping(){
+  const fields=[['publishTime','게시 시간',1],['postType','게시물 유형',0],['description','설명/캡션',0],['reach','도달',1],['impressions','노출',0],['likes','좋아요',1],['comments','댓글',1],['shares','공유',1],['saves','저장',1],['videoViews','동영상 조회',0],['linkClicks','링크 클릭',0],['profileVisits','프로필 방문',0],['follows','팔로우',0],['permalink','링크',0]];
+  const opts=h=>`<option value="">— 없음 —</option>`+STATE.headers.map(x=>`<option value="${esc(x)}"${STATE.map[h.f]===x?' selected':''}>${esc(x)}</option>`).join('');
+  $('mapGrid').innerHTML=fields.map(([f,lab,req])=>`<div class="map-cell${req?' req':''}"><label>${lab}</label><select data-f="${f}">${opts({f})}</select></div>`).join('');
+}
+
+/* ============ 데이터 처리 ============ */
+function runAnalysis(csvText,overrideMap){
+  try{
+    const rows=parseCSV(csvText);
+    const {headers,data}=rowsToObjects(rows);
+    if(!headers.length||!data.length){showErr('CSV에서 데이터를 읽지 못했습니다. 헤더 행이 있는 파일인지 확인해 주세요.');return;}
+    const map=overrideMap||detectFields(headers);
+    const records=buildRecords(data,map);
+    const metrics=computeMetrics(records,map);
+    STATE.headers=headers;STATE.map=map;STATE.records=records;STATE.metrics=metrics;
+    clearErr();renderMapping();render();
+    window.scrollTo({top:0,behavior:'smooth'});
+  }catch(e){showErr('분석 중 오류가 발생했습니다: '+e.message);}
+}
+
+function showErr(msg){$('errBox').innerHTML=`<div class="err">${esc(msg)}</div>`;}
+function clearErr(){$('errBox').innerHTML='';}
+
+function handleFile(file){
+  STATE.fileName=file.name;
+  const ext=file.name.toLowerCase().split('.').pop();
+  if(ext==='xlsx'||ext==='xls'){
+    if(typeof XLSX==='undefined'){showErr('XLSX 라이브러리를 불러오지 못했습니다(오프라인일 수 있음). CSV로 내보내 다시 시도해 주세요.');return;}
+    const reader=new FileReader();
+    reader.onload=e=>{try{const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];const csv=XLSX.utils.sheet_to_csv(ws);runAnalysis(csv);}catch(err){showErr('XLSX 파싱 실패: '+err.message);}};
+    reader.readAsArrayBuffer(file);
+  }else{
+    const reader=new FileReader();
+    reader.onload=e=>runAnalysis(e.target.result);
+    reader.readAsText(file,'UTF-8');
+  }
+}
+
+/* 샘플 데이터 */
+const SAMPLE=`게시 시간,게시물 유형,설명,도달,노출,좋아요,댓글,공유,저장,프로필 방문,링크 클릭,퍼머링크
+2024-03-04 09:30,릴스,"ISA 계좌, 이거 모르면 손해",12450,18900,820,45,33,210,140,22,https://instagram.com
+2024-03-06 21:15,이미지,연금저축 세액공제 총정리,3200,4100,210,12,5,88,40,9,https://instagram.com
+2024-03-08 12:00,캐러셀,"커버드콜 ETF 장단점, 한눈에",5400,7200,330,28,19,165,70,15,https://instagram.com
+2024-03-11 18:00,이미지,IRP 갈아타기 체크리스트,2100,2800,140,8,3,52,25,6,https://instagram.com
+2024-03-13 07:45,릴스,30대 직장인 포트폴리오 공개,9800,15200,610,51,40,240,120,30,https://instagram.com
+2024-03-15 19:20,캐러셀,비과세 한도 200% 활용법,4600,6100,280,19,11,130,55,12,https://instagram.com
+2024-03-18 08:10,릴스,"환율, 지금 사도 될까",7300,11000,470,38,27,190,95,21,https://instagram.com
+2024-03-20 22:40,이미지,세금 줄이는 3가지 습관,1900,2500,120,6,2,44,18,4,https://instagram.com
+2024-03-22 12:30,릴스,청약통장 200% 활용,8600,13400,520,44,31,205,110,26,https://instagram.com
+2024-03-25 20:05,캐러셀,월 50만원 적립식 시뮬레이션,5100,6700,300,22,14,148,60,13,https://instagram.com
+2024-03-27 09:00,이미지,연말정산 미리보기,2400,3100,160,9,4,61,28,7,https://instagram.com
+2024-03-29 18:40,릴스,"퇴직연금, 디폴트옵션 정리",10200,16100,640,49,37,228,118,29,https://instagram.com`;
+
+/* 이벤트 */
+$('drop').addEventListener('click',()=>$('fileInput').click());
+$('pickBtn').addEventListener('click',()=>$('fileInput').click());
+$('fileInput').addEventListener('change',e=>{if(e.target.files[0])handleFile(e.target.files[0]);});
+['dragenter','dragover'].forEach(ev=>$('drop').addEventListener(ev,e=>{e.preventDefault();$('drop').classList.add('over');}));
+['dragleave','drop'].forEach(ev=>$('drop').addEventListener(ev,e=>{e.preventDefault();$('drop').classList.remove('over');}));
+$('drop').addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(f)handleFile(f);});
+$('sampleBtn').addEventListener('click',()=>{STATE.fileName='샘플 데이터';runAnalysis(SAMPLE);});
+$('resetBtn').addEventListener('click',()=>{$('resultState').classList.add('hidden');$('uploadState').classList.remove('hidden');$('statusPill').textContent='데이터 대기 중';$('fileInput').value='';clearErr();window.scrollTo({top:0});});
+$('toggleMap').addEventListener('click',()=>$('mapPanel').classList.toggle('hidden'));
+$('recalcBtn').addEventListener('click',()=>{const nm={};document.querySelectorAll('#mapGrid select').forEach(sel=>{if(sel.value)nm[sel.dataset.f]=sel.value;});const rows=parseCSV(STATE._raw||'');/*re-run from stored raw*/runAnalysis(STATE._raw,nm);});
+$('topTabs').addEventListener('click',e=>{const t=e.target.closest('.tab');if(t)renderTop(t.dataset.k);});
+
+/* recalc는 원본 CSV가 필요 → runAnalysis에서 원본 저장 */
+const _origRun=runAnalysis;
+runAnalysis=function(csvText,overrideMap){STATE._raw=csvText;_origRun(csvText,overrideMap);};
+</script>
+</body>
+</html>
